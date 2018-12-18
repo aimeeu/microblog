@@ -20,3 +20,4 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL') or 'sqlite:///' + os.path.join(basedir, 'microblog.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    USER_ABOUT_ME_MAX_LENGTH = 140

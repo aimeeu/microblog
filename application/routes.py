@@ -1,6 +1,8 @@
-from application import app, db
-from application.forms import LoginForm, RegistrationForm
-from application.models import User
+from application import app, db, Config
+from application.forms import (
+    LoginForm, RegistrationForm, EditProfileForm
+)
+from application.models import User, Post
 from flask import (
     render_template, flash, redirect, url_for, request
 )
@@ -8,23 +10,21 @@ from flask_login import (
     current_user, login_user, logout_user, login_required
 )
 from werkzeug.urls import url_parse
+from datetime import datetime
+
+
+@app.before_request
+def before_request():
+    if current_user.is_authenticated:
+        current_user.last_seen = datetime.utcnow()
+        db.session.commit()
 
 
 @app.route('/')
 @app.route('/index')
 @login_required
 def index():
-    user = {'username': 'Aimee'}
-    posts = [
-        {
-            'author': {'username': 'John'},
-            'body': 'Beautiful day in Portland!'
-        },
-        {
-            'author': {'username': 'Susan'},
-            'body': 'The Avengers movie was so cool!'
-        }
-    ]
+    posts = Post.query.order_by(Post.timestamp.desc()).all()
     return render_template('index.html', title='Home', posts=posts)
 
 
@@ -66,3 +66,72 @@ def register():
         flash('Congratulations, you are now a registered user!')
         return redirect(url_for('login'))
     return render_template('register.html', title='Register', form=form)
+
+
+@app.route('/user/<username>')
+@login_required
+def user(username):
+    '''
+    Try to load the user from the database using a query by the username.
+    Call first_or_404(), which works exactly like first() when  there are
+    results, but when there are no results, automatically sends a 404
+    error back to the client. Executing the query in this way saves having to
+    check if the query returned a user, because when the username does not
+    exist in the database the function will not return and instead a
+    404 exception will be raised. If the database query does not trigger a
+    404 error, then that means that a user was found.
+    Initialize a fake list of posts for this user.
+    Render a new user.html template, passing the user and the list of posts.
+    :param username:
+    :return: user.html
+    '''
+
+    this_user = User.query.filter_by(username=username).first_or_404()
+    posts = Post.query.filter_by(user_id=this_user.id).all()
+    return render_template('user.html', user=this_user, posts=posts)
+
+
+@app.route('/edit_profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    '''
+    If validate_on_submit()
+    returns True I copy the data from the form into the user object and then
+    write the object to the
+    database. But when validate_on_submit() returns False it can be due to two
+    different
+    reasons. First, it can be because the browser just sent a GET request,
+    which I need to respond
+    by providing an initial version of the form template. It can also be when
+    the browser sends
+    a POST request with form data, but something in that data is invalid. For
+    this form, I need to
+    treat these two cases separately. When the form is being requested for the
+    first time with a GET
+    request, I want to pre-populate the fields with the data that is stored in
+    the database, so I need to
+    do the reverse of what I did on the submission case and move the data stored
+    in the user fields
+    to the form, as this will ensure that those form fields have the current
+    data stored for the user.
+    But in the case of a validation error I do not want to write anything to the
+    form fields, because
+    those were already populated by WTForms. To distinguish between these two
+    cases, I check
+    request.method , which will be GET for the initial request, and POST for a
+    submission that
+    failed validation.
+    :return: edit_profile.html
+    '''
+    form = EditProfileForm()
+    if form.validate_on_submit():
+        current_user.username = form.username.data
+        current_user.about_me = form.about_me.data
+        db.session.commit()
+        flash('Your changes have been saved.')
+        return redirect(url_for('user',  username=current_user.username))
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.about_me.data = current_user.about_me
+        return render_template('edit_profile.html', title='Edit Profile',
+                               form=form)
