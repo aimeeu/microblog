@@ -12,4 +12,7 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 # import routes after declaring application
-from application import routes, models
+from application import routes, models, errors, log_conf
+
+if not app.debug:
+    log_conf.configure_logging(app)

@@ -1,9 +1,15 @@
-from application import db, login_manager
+from application import app, db, login_manager
 from config import Config
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from hashlib import md5
+
+
+followers = db.Table('followers',
+                     db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
+                     db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
+                     )
 
 
 class User(db.Model, UserMixin):
@@ -18,6 +24,12 @@ class User(db.Model, UserMixin):
     # object. This will add a
     # post.author expression that will return the user given a post.
     posts = db.relationship('Post', backref='author', lazy='dynamic')
+    followed = db.relationship(
+        'User', secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic'
+    )
 
     def __repr__(self):
         return '<User {}, UserID {}, Email {}>'.format(self.username, self.id, self.email)
@@ -45,6 +57,25 @@ class User(db.Model, UserMixin):
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(
             digest, size)
 
+    def follow(self, user):
+        if not self.is_following(user):
+            self.followed.append(user)
+
+    def unfollow(self, user):
+        if self.is_following(user):
+            self.followed.remove(user)
+
+    def is_following(self, user):
+        return self.followed.filter(
+            followers.c.followed_id == user.id).count() > 0
+
+    def followed_posts(self):
+        followed = Post.query.join(
+            followers, (followers.c.followed_id == Post.user_id)).filter(
+            followers.c.follower_id == self.id)
+        own = Post.query.filter_by(user_id=self.id)
+        return followed.union(own).order_by(Post.timestamp.desc())
+
     @property
     def serialize(self):
         """Return object data in easily serializable format"""
@@ -53,6 +84,9 @@ class User(db.Model, UserMixin):
             'username': self.username,
             'email': self.email
         }
+
+
+
 
 
 class Post(db.Model):

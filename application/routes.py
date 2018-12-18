@@ -1,4 +1,5 @@
-from application import app, db, Config
+import logging
+from application import app, db, errors
 from application.forms import (
     LoginForm, RegistrationForm, EditProfileForm
 )
@@ -12,6 +13,8 @@ from flask_login import (
 from werkzeug.urls import url_parse
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 
 @app.before_request
 def before_request():
@@ -24,7 +27,13 @@ def before_request():
 @app.route('/index')
 @login_required
 def index():
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
+    '''
+    show blog posts written by all
+the people that are followed by the logged in user
+    :return:
+    '''
+    # posts = Post.query.order_by(Post.timestamp.desc()).all()
+    posts = current_user.followed_posts()
     return render_template('index.html', title='Home', posts=posts)
 
 
@@ -110,11 +119,13 @@ def edit_profile():
     first time with a GET
     request, I want to pre-populate the fields with the data that is stored in
     the database, so I need to
-    do the reverse of what I did on the submission case and move the data stored
+    do the reverse of what I did on the submission case and move the data
+    stored
     in the user fields
     to the form, as this will ensure that those form fields have the current
     data stored for the user.
-    But in the case of a validation error I do not want to write anything to the
+    But in the case of a validation error I do not want to write anything to
+    the
     form fields, because
     those were already populated by WTForms. To distinguish between these two
     cases, I check
@@ -123,15 +134,51 @@ def edit_profile():
     failed validation.
     :return: edit_profile.html
     '''
-    form = EditProfileForm()
-    if form.validate_on_submit():
-        current_user.username = form.username.data
-        current_user.about_me = form.about_me.data
-        db.session.commit()
-        flash('Your changes have been saved.')
-        return redirect(url_for('user',  username=current_user.username))
-    elif request.method == 'GET':
-        form.username.data = current_user.username
-        form.about_me.data = current_user.about_me
-        return render_template('edit_profile.html', title='Edit Profile',
-                               form=form)
+    try:
+        form = EditProfileForm(current_user.username)
+        if form.validate_on_submit():
+            current_user.username = form.username.data
+            current_user.about_me = form.about_me.data
+            db.session.commit()
+            flash('Your changes have been saved.')
+            return redirect(url_for('user', username=current_user.username))
+        elif request.method == 'GET':
+            form.username.data = current_user.username
+            form.about_me.data = current_user.about_me
+            return render_template('edit_profile.html',
+                                   title='Edit Profile', form=form)
+    except Exception as e:
+        logging.error(e)
+        errors.internal_error(e)
+
+
+@app.route('/follow/<username>')
+@login_required
+def follow(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('User {} not found.'.format(username))
+        return redirect(url_for('index'))
+    if user == current_user:
+        flash('You cannot follow yourself!')
+    return redirect(url_for('user', username=username))
+    current_user.follow(user)
+    db.session.commit()
+    flash('You are following {}!'.format(username))
+    return redirect(url_for('user', username=username))
+
+
+@app.route('/unfollow/<username>')
+@login_required
+def unfollow(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('User {} not found.'.format(username))
+        return redirect(url_for('index'))
+    if user == current_user:
+        flash('You cannot unfollow yourself!')
+        return redirect(url_for('user', username=username))
+    current_user.unfollow(user)
+    db.session.commit()
+    flash('You are not following {}.'.format(username))
+    return redirect(url_for('user', username=username))

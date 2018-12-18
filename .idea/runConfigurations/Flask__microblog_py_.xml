@@ -1,5 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Flask (microblog.py)" type="Python.FlaskServer" factoryName="Flask server" nameIsGenerated="true">
+    <option name="flaskDebug" value="true" />
     <module name="flask-mega-tutorial-microblog" />
     <option name="target" value="$PROJECT_DIR$/microblog.py" />
     <option name="targetType" value="PATH" />
