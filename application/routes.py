@@ -1,7 +1,7 @@
 import logging
 from application import app, db, errors
 from application.forms import (
-    LoginForm, RegistrationForm, EditProfileForm
+    LoginForm, RegistrationForm, EditProfileForm, PostForm
 )
 from application.models import User, Post
 from flask import (
@@ -23,8 +23,8 @@ def before_request():
         db.session.commit()
 
 
-@app.route('/')
-@app.route('/index')
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
 @login_required
 def index():
     '''
@@ -32,9 +32,43 @@ def index():
 the people that are followed by the logged in user
     :return:
     '''
+    form = PostForm()
+    if form.validate_on_submit():
+        post = Post(body=form.post.data, author=current_user)
+        db.session.add(post)
+        db.session.commit()
+        flash('Your post is now live!')
+        return redirect(url_for('index'))
     # posts = Post.query.order_by(Post.timestamp.desc()).all()
-    posts = current_user.followed_posts()
-    return render_template('index.html', title='Home', posts=posts)
+    # posts = current_user.followed_posts().all()
+    # The return value from paginate is a Pagination object. The items
+    # attribute of this object contains the list of items in the requested page
+    page = request.args.get('page', 1, type=int)
+    posts = current_user.followed_posts().paginate(page, app.config[
+        'POSTS_PER_PAGE'], False)
+    next_url = url_for('index',
+                       page=posts.next_num) if posts.has_next else None
+    prev_url = url_for('index',
+                       page=posts.prev_num) if posts.has_prev else None
+    return render_template('index.html', title='Home', form=form,
+                           posts=posts.items, next_url=next_url,
+                           prev_url=prev_url)
+
+
+@app.route('/explore')
+@login_required
+def explore():
+    page = request.args.get('page', 1, type=int)
+    posts = Post.query.order_by(Post.timestamp.desc()).paginate(page,
+                                                                app.config[
+                                                                    'POSTS_PER_PAGE'],
+                                                                False)
+    next_url = url_for('explore',
+                       page=posts.next_num) if posts.has_next else None
+    prev_url = url_for('explore',
+                       page=posts.prev_num) if posts.has_prev else None
+    return render_template('index.html', title='Explore', posts=posts.items,
+                           next_url=next_url, prev_url=prev_url)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -96,8 +130,17 @@ def user(username):
     '''
 
     this_user = User.query.filter_by(username=username).first_or_404()
-    posts = Post.query.filter_by(user_id=this_user.id).all()
-    return render_template('user.html', user=this_user, posts=posts)
+    page = request.args.get('page', 1, type=int)
+    posts = Post.query.filter_by(user_id=this_user.id).paginate(page,
+                                                                app.config[
+                                                                    'POSTS_PER_PAGE'],
+                                                                False)
+    next_url = url_for('user', username=username,
+                       page=posts.next_num) if posts.has_next else None
+    prev_url = url_for('user', username=username,
+                       page=posts.prev_num) if posts.has_prev else None
+    return render_template('user.html', user=this_user, posts=posts.items,
+                           next_url=next_url, prev_url=prev_url)
 
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
