@@ -3,13 +3,15 @@ Flask Mega Tutorial Microblog
 =============================
 https://courses.miguelgrinberg.com/
 
-Flask Plugins
-=============
+Plugins
+=======
 
 * `Flask-Login <https://flask-login.readthedocs.io/>`_, login management
 * `Flask-Migrate <https://flask-migrate.readthedocs.io/en/latest/>`_, database management using Alembic
 * `Flask-SQLAlchemy <http://flask-sqlalchemy.pocoo.org/>`_, database ORM
 * `Flask-WTF <https://flask-wtf.readthedocs.io/>`_, a thin wrapper around `WTForms <https://wtforms.readthedocs.io/>`_
+* `Flask-Mail <https://pythonhosted.org/Flask-Mail/>`_
+* `PyJWT <https://pyjwt.readthedocs.io/en/latest/>`_, which uses `JSON Web Tokens <https://jwt.io/>`_
 
 Initialize SQLite Database
 ==========================
