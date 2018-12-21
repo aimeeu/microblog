@@ -13,6 +13,8 @@ Frameworks
 * `Flask-Mail <https://pythonhosted.org/Flask-Mail/>`_
 * `PyJWT <https://pyjwt.readthedocs.io/en/latest/>`_, which uses `JSON Web Tokens <https://jwt.io/>`_
 * `Flask-Bootstrap <https://pythonhosted.org/Flask-Bootstrap/>`_, which uses `Bootstrap <http://getbootstrap.com/>`_ for HTML
+* `Flask-Moment <https://github.com/miguelgrinberg/Flask-Moment>`_, which makes it easy to incorporate `moment.js <http://momentjs.com>`_
+* `Flask-Babel <https://pythonhosted.org/Flask-Babel/>`_ for internationalization
 
 
 Initialize SQLite Database
